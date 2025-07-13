@@ -313,8 +313,6 @@ void SHA3_224(const unsigned char *input, unsigned char *output)
     for(i=0; i < inputByteLen; i++) // XOR the input with the state
         state[i] ^= input[i];
 
-    KeccakF1600_StatePermute(state);
-
     /* === Do the padding and switch to the squeezing phase === */
     /* Add padding (which coincides with the delimiter in delimitedSuffix) */
     state[inputByteLen] ^= delimitedSuffix;
