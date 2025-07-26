@@ -1,17 +1,21 @@
 #include <stdio.h>
 #include "sha3_224.c"
 
-#define DATA_SIZE 1433600000 // ~1.4Gb - this is 1000000 sets of 32 blocks
+// #define DATA_SIZE 1433600000 // ~1.4Gb - this is 1000000 sets of 32 blocks
 // #define DATA_SIZE 1433600 // ~1.4Mb - this is 100 sets of 32 blocks
-// #define DATA_SIZE 1792 // this fits perfectly into 32 blocks
-#define LEAF_COUNT 32
+#define DATA_SIZE 1792 // this fits perfectly into 32 blocks
+// #define LEAF_COUNT 32
 // #define LEAF_COUNT 16
-// #define LEAF_COUNT 8
+#define LEAF_COUNT 8
 #define BLOCK_SIZE 56 // each block stores up to 448 bits (56 bytes)
+
+// With a data size of 1792, all the block sizes respond correctly to changing the sentinel value
+// None of them seem to respond correctly to changes in the sentinel value for a bigger data size
+// Need to debug this! Why is this not responding to data of bigger sizes?
 
 int main() {
     static unsigned char raw_data[DATA_SIZE] = {0};
-    raw_data[DATA_SIZE - 1] = 2; // sentinel value to check we're hashing everything
+    raw_data[DATA_SIZE - 1] = 1; // sentinel value to check we're hashing everything
     static unsigned char hashed_data[DATA_SIZE/2];
     unsigned long int data_processed = 0;
 
@@ -19,6 +23,10 @@ int main() {
     while (data_processed != DATA_SIZE) {
         for (int i = 0; i < LEAF_COUNT; i++) {
             SHA3_224(&raw_data[data_processed + i * BLOCK_SIZE], &hashed_data[data_processed/2 + i * BLOCK_SIZE/2]);
+        }
+
+        for (int j = 0; j < BLOCK_SIZE/2; j++) {
+            printf("%02x", hashed_data[j]); // TODO - wonder if my indexing maths is correct...
         }
 
         data_processed += (LEAF_COUNT * BLOCK_SIZE);
