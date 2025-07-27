@@ -62,12 +62,11 @@ typedef uint64_t tKeccakLane;
 A readable and compact implementation of the Keccak-f[1600] permutation.
 ================================================================
 */
-
-#define ROL64(a, offset) ((((uint64_t)a) << offset) ^ (((uint64_t)a) >> (64-offset)))
-#define i(x, y) ((x)+5*(y))
-#define readLane(x, y)          (((tKeccakLane*)state)[i(x, y)])
-#define writeLane(x, y, lane)   (((tKeccakLane*)state)[i(x, y)]) = (lane)
-#define XORLane(x, y, lane)     (((tKeccakLane*)state)[i(x, y)]) ^= (lane)
+#define opt_ROL64(a, offset) ((((uint64_t)a) << offset) ^ (((uint64_t)a) >> (64-offset)))
+#define opt_i(x, y) ((x)+5*(y))
+#define opt_readLane(x, y)          (((tKeccakLane*)state)[opt_i(x, y)])
+#define opt_writeLane(x, y, lane)   (((tKeccakLane*)state)[opt_i(x, y)]) = (lane)
+#define opt_XORLane(x, y, lane)     (((tKeccakLane*)state)[opt_i(x, y)]) ^= (lane)
 
 /**
   * Function that computes the linear feedback shift register (LFSR) used to
@@ -98,21 +97,21 @@ void opt_KeccakF1600_StatePermute(void *state)
 
             /* Compute the parity of the columns */
             for(x=0; x<5; x++)
-                C[x] = readLane(x, 0) ^ readLane(x, 1) ^ readLane(x, 2) ^ readLane(x, 3) ^ readLane(x, 4);
+                C[x] = opt_readLane(x, 0) ^ opt_readLane(x, 1) ^ opt_readLane(x, 2) ^ opt_readLane(x, 3) ^ opt_readLane(x, 4);
             for(x=0; x<5; x++) {
                 /* Compute the θ effect for a given column */
-                D = C[(x+4)%5] ^ ROL64(C[(x+1)%5], 1);
+                D = C[(x+4)%5] ^ opt_ROL64(C[(x+1)%5], 1);
                 /* Add the θ effect to the whole column */
                 for (y=0; y<5; y++)
-                    XORLane(x, y, D);
+                    opt_XORLane(x, y, D);
             }
         }
 
-        {   /* === ρ and π steps (see [Keccak Reference, Sections 2.3.3 and 2.3.4]) === */
+        {   /* === �? and π steps (see [Keccak Reference, Sections 2.3.3 and 2.3.4]) === */
             tKeccakLane current, temp;
             /* Start at coordinates (1 0) */
             x = 1; y = 0;
-            current = readLane(x, y);
+            current = opt_readLane(x, y);
             /* Iterate over ((0 1)(2 3))^t * (1 0) for 0 ≤ t ≤ 23 */
             for(t=0; t<24; t++) {
                 /* Compute the rotation constant r = (t+1)(t+2)/2 */
@@ -120,8 +119,8 @@ void opt_KeccakF1600_StatePermute(void *state)
                 /* Compute ((0 1)(2 3)) * (x y) */
                 unsigned int Y = (2*x+3*y)%5; x = y; y = Y;
                 /* Swap current and state(x,y), and rotate */
-                temp = readLane(x, y);
-                writeLane(x, y, ROL64(current, r));
+                temp = opt_readLane(x, y);
+                opt_writeLane(x, y, opt_ROL64(current, r));
                 current = temp;
             }
         }
@@ -131,10 +130,10 @@ void opt_KeccakF1600_StatePermute(void *state)
             for(y=0; y<5; y++) {
                 /* Take a copy of the plane */
                 for(x=0; x<5; x++)
-                    temp[x] = readLane(x, y);
+                    temp[x] = opt_readLane(x, y);
                 /* Compute χ on the plane */
                 for(x=0; x<5; x++)
-                    writeLane(x, y, temp[x] ^((~temp[(x+1)%5]) & temp[(x+2)%5]));
+                    opt_writeLane(x, y, temp[x] ^((~temp[(x+1)%5]) & temp[(x+2)%5]));
             }
         }
 
@@ -142,7 +141,7 @@ void opt_KeccakF1600_StatePermute(void *state)
             for(j=0; j<7; j++) {
                 unsigned int bitPosition = (1<<j)-1; /* 2^j-1 */
                 if (opt_LFSR86540(&LFSRstate))
-                    XORLane(0, 0, (tKeccakLane)1<<bitPosition);
+                    opt_XORLane(0, 0, (tKeccakLane)1<<bitPosition);
             }
         }
     }
@@ -151,20 +150,22 @@ void opt_KeccakF1600_StatePermute(void *state)
 /**
  * This is a stripped back version that removes the generalities from the FIPS implementation
  */
-void SHA3_OPT_224(const unsigned char *input, unsigned char *output)
+void SHA3_OPT_224(const unsigned char input[56], unsigned char output[28])
 {
     unsigned int rate = 1152; // Thus capacity = 448
     unsigned int inputByteLen = 56;
     unsigned char delimitedSuffix = 0x06;
     unsigned int outputByteLen = 28;
 
-    int state_size = 200;
-    uint8_t state[state_size];
+    // We don't know the size of input/output at compile time (we actually do, can we use that)
+
+    uint8_t state[200];
     unsigned int rateInBytes = rate/8;
     unsigned int i;
+    unsigned int j;
 
     /* === Initialize the state === */
-    for (int j = 0; j < state_size; j++) {
+    for (j = 0; j < 200; j++) {
         state[j] = 0;
     }
 
@@ -182,7 +183,7 @@ void SHA3_OPT_224(const unsigned char *input, unsigned char *output)
     opt_KeccakF1600_StatePermute(state);
 
     /* === Squeeze out all the output blocks === */
-    for (int j = 0; j < outputByteLen; j++) {
+    for (j = 0; j < outputByteLen; j++) {
         output[j] = state[j];
     }
 }

@@ -190,7 +190,7 @@ void KeccakF1600_StatePermute(void *state)
             }
         }
 
-        {   /* === ρ and π steps (see [Keccak Reference, Sections 2.3.3 and 2.3.4]) === */
+        {   /* === �? and π steps (see [Keccak Reference, Sections 2.3.3 and 2.3.4]) === */
             tKeccakLane current, temp;
             /* Start at coordinates (1 0) */
             x = 1; y = 0;
