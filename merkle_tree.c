@@ -49,3 +49,27 @@ int main() {
     }
     printf("\n");
 }
+
+struct hash_t {
+    uint8_t bytes[28];
+};
+
+// leaf_nodes == total number in the tree is data_size
+// make an upper bound --> 56 * 16^n --> 6 levels in the tree
+// Break everything into separate functions to be able to separate concerns (no return in any subfunction -- void)
+// Inputs and outputs must be streams -- do this after
+
+
+
+hash_t merkle_tree(hls::stream<ap_uint<224>> &in, uint32_t leaf_nodes) {
+
+}
+
+/*
+    For testing this ^^
+
+    C++ testbench
+    Make stream object in test file --> pass that to th efunction call
+    We write to the input stream in the c++ file (whole data set)
+
+*/
