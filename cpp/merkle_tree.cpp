@@ -12,6 +12,7 @@ void merkle_tree_8(hls::stream<ap_uint<256>> &in , unsigned char output[32]) {
     
     unsigned char hashed_leaves[256];
 
+    // We read in 4096 bits of data. For every 512 bits we read in we hash it and store it
     for (i = 0; i < 8; i++) {
         // We read in a pair of data
         ap_uint<256> left  = in.read();
@@ -30,17 +31,20 @@ void merkle_tree_8(hls::stream<ap_uint<256>> &in , unsigned char output[32]) {
         sha3_opt_256(input, &hashed_leaves[i*32]);
     }
 
+    // We read through the hashed array, pairing up data and rehashing it
     unsigned char hashed_layer_1[128];
     for (i = 0; i < 4; i++) {
         // Pass the 64 byte input and store the 32 byte hashed result
         sha3_opt_256(&hashed_leaves[i*64], &hashed_layer_1[i*32]);
     }
 
+    // Again
     unsigned char hashed_layer_2[64];
     for (i = 0; i < 2; i++) {
         // Pass the 64 byte input and store the 32 byte hashed result
         sha3_opt_256(&hashed_layer_1[i*64], &hashed_layer_2[i*32]);
     }
 
+    // We have 512 bits left at this point so we just write directly to the output buffer with the hash result
     sha3_opt_256(hashed_layer_2, output);
 }
