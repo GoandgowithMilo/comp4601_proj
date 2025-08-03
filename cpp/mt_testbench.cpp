@@ -25,11 +25,6 @@ int main() {
     // Call top-level function (runs as tasks internally)
     merkle_tree(in_stream, out_stream);
 
-    // Wait for output (only one final hash expected for a complete binary Merkle tree)
-    while (out_stream.empty()) {
-        // Optionally wait or timeout
-    }
-
     ap_uint<256> final_hash = out_stream.read();
 
     std::cout << "Merkle Root Hash: 0x";
