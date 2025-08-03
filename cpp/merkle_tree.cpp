@@ -5,6 +5,8 @@
 
 #include "sha3_256.h"
 
+#include <iostream>
+
 struct hash_t {
     unsigned char to_hash[64];
     unsigned char hashed[32];
@@ -81,9 +83,11 @@ void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, h
 }
 
 void merkle_tree(hls::stream<ap_uint<512>> &in, hls::stream<ap_uint<256>> &out) {
-    hls_thread_local hls::stream<hash_t, 32> feedback; // output_manager => input_manager
-    hls_thread_local hls::stream<hash_t, 32> in_sha3; // input_manager => sha_3
-    hls_thread_local hls::stream<hash_t, 32> sha3_out; // sha_3 => output_manager
+    #pragma HLS INTERFACE axis port=in depth=64
+    #pragma HLS INTERFACE axis port=out depth=64
+    hls_thread_local hls::stream<hash_t, 64> feedback; // output_manager => input_manager
+    hls_thread_local hls::stream<hash_t, 64> in_sha3; // input_manager => sha_3
+    hls_thread_local hls::stream<hash_t, 64> sha3_out; // sha_3 => output_manager
 
     hls::task t_input_manager(input_manager, in, feedback, in_sha3);
     hls::task t_sha3_pipeline(sha3_pipeline, in_sha3, sha3_out);

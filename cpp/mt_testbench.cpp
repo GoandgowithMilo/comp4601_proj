@@ -6,8 +6,8 @@
 void merkle_tree(hls::stream<ap_uint<512>> &in, hls::stream<ap_uint<256>> &out);
 
 int main() {
-    hls::stream<ap_uint<512>, 32> in_stream;
-    hls::stream<ap_uint<256>, 32> out_stream;
+    hls::stream<ap_uint<512>, 64> in_stream;
+    hls::stream<ap_uint<256>, 64> out_stream;
 
     // Example input: Fill 64 bytes (512 bits) with some known pattern
     ap_uint<512> input_block = 0;
