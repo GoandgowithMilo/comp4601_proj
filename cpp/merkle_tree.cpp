@@ -3,7 +3,7 @@
 #include <hls_stream.h>
 #include <hls_task.h>
 
-#include "sha3_256.cpp"
+#include "sha3_256.h"
 
 struct hash_t {
     unsigned char to_hash[64];
@@ -82,8 +82,7 @@ void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, h
     }
 }
 
-// Takes as input the data from the dataloader as a stream?
-void merkle_tree(hls::stream<ap_uint<512>> &in, hls::stream<hash_t> &out) {
+void merkle_tree(hls::stream<ap_uint<512>> &in, hls::stream<ap_uint<256>> &out) {
     hls_thread_local hls::stream<hash_t, 32> feedback; // output_manager => input_manager
     hls_thread_local hls::stream<hash_t, 32> in_sha3; // input_manager => sha_3
     hls_thread_local hls::stream<hash_t, 32> sha3_out; // sha_3 => output_manager
@@ -98,7 +97,14 @@ void merkle_tree(hls::stream<ap_uint<512>> &in, hls::stream<hash_t> &out) {
 // Run CSIM, then run COSIM to check for deadlocks (size is ignored for csim)
 // verify and check no deadlocks!
 
-// controller( input, output)
-// generate data
-// write the data to the input stream
-// read the ouptupt data and check expected value (what would this be??? lol)
+/* Need to come up with a way to produce an expected value... Could maybe use chatgpt to write a python program or modify
+my C++ program to do it? */
+
+/*
+    Create input and output streams
+    Generate dataset
+    create instance of controller with input and ouput streams
+    write data to input stream
+    read from the output stream
+
+*/

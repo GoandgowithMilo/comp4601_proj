@@ -1,4 +1,5 @@
 #include <cstdint>
+#include "sha3_256.h"
 
 typedef uint64_t tKeccakLane;
 
