@@ -5,8 +5,6 @@
 
 #include "sha3_256.h"
 
-#include <iostream>
-
 struct hash_t {
     unsigned char to_hash[64];
     unsigned char hashed[32];
@@ -16,17 +14,14 @@ struct hash_t {
 void input_manager(hls::stream<ap_uint<512>> &input, hls::stream<hash_t> &feedback, hls::stream<hash_t> &output) {
     hash_t out;
 
-    if (feedback.size() >= 2) {
-        hash_t in1 = feedback.read();
-        hash_t in2 = feedback.read();
-        out.hash_layer = in1.hash_layer;
+    if (!feedback.empty()) {
+        hash_t in = feedback.read();
+        out.hash_layer = in.hash_layer;
 
-        for (int i = 0; i < 32; i++) {
-            out.to_hash[i] = in1.hashed[i];
-            out.to_hash[i + 32] = in2.hashed[i];
+        for (int i = 0; i < 64; i++) {
+            out.to_hash[i] = in.to_hash[i];
         }
 
-        std::cout << out.hash_layer << std::endl;
         output.write(out);
 
     } else if (!input.empty()) {
@@ -37,7 +32,6 @@ void input_manager(hls::stream<ap_uint<512>> &input, hls::stream<hash_t> &feedba
             out.to_hash[i] = in_val.range(8 * (i + 1) - 1, 8 * i);
         }
         
-        std::cout << out.hash_layer << std::endl;
         output.write(out);
     }
 }
@@ -50,7 +44,7 @@ void sha3_pipeline(hls::stream<hash_t> &input, hls::stream<hash_t> &output) {
     output.write(data);
 }
 
-#define TREE_LAYERS 3
+#define TREE_LAYERS 14
 void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, hls::stream<ap_uint<256>> &output) {
     static hash_t layers[TREE_LAYERS]; // For 16,384 leaves we have log_2(16384) = 14 layers of the tree
     static bool layer_in_use[TREE_LAYERS];
@@ -69,16 +63,18 @@ void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, h
 
         layer_in_use[layer] = false;
 
-        if (combined.hash_layer < TREE_LAYERS) {
-            feedback.write(combined);
-        } else { // we've hit the end and want to write back the resulting hash
+        feedback.write(combined);
+
+    } else if (layer == (TREE_LAYERS - 1)) { // We're at the final hash
             ap_uint<256> final_hash;
+
             for (int i = 0; i < 32; i++) {
-                final_hash.range(8 * (i + 1) - 1, 8 * i) = combined.hashed[i];
+                final_hash.range(8 * (i + 1) - 1, 8 * i) = in.hashed[i];
             }
+
             output.write(final_hash);
-        }
-    } else { // we store the hash until its pair arrives
+
+    } else { // We store this for pairing up later
         layers[layer] = in;
         layer_in_use[layer] = true;
     }
