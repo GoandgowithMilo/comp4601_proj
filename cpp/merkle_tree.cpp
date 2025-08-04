@@ -44,7 +44,7 @@ void sha3_pipeline(hls::stream<hash_t> &input, hls::stream<hash_t> &output) {
     output.write(data);
 }
 
-#define TREE_LAYERS 3
+#define TREE_LAYERS 1
 void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, hls::stream<ap_uint<256>> &output) {
     static hash_t layers[TREE_LAYERS]; // For 16,384 leaves we have log_2(16384) = 14 layers of the tree
     static bool layer_in_use[TREE_LAYERS] = {};

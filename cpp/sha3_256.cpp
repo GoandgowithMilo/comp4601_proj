@@ -3,149 +3,142 @@
 
 typedef uint64_t tKeccakLane;
 
-/*
-================================================================
-A readable and compact implementation of the Keccak-f[1600] permutation.
-================================================================
-*/
-#define opt_ROL64(a, offset) ((((uint64_t)a) << offset) ^ (((uint64_t)a) >> (64-offset)))
-#define opt_i(x, y) ((x)+5*(y))
-#define opt_readLane(x, y)          (((tKeccakLane*)state)[opt_i(x, y)])
-#define opt_writeLane(x, y, lane)   (((tKeccakLane*)state)[opt_i(x, y)]) = (lane)
-#define opt_XORLane(x, y, lane)     (((tKeccakLane*)state)[opt_i(x, y)]) ^= (lane)
+// Rotation left for 64-bit words
+tKeccakLane opt_ROL64(tKeccakLane a, unsigned int offset) {
+    return ((a << offset) | (a >> (64 - offset)));
+}
 
-/**
-  * Function that computes the linear feedback shift register (LFSR) used to
-  * define the round constants (see [Keccak Reference, Section 1.2]).
-  */
-int opt_LFSR86540(uint8_t *LFSR)
-{
-    int result = ((*LFSR) & 0x01) != 0;
-    if (((*LFSR) & 0x80) != 0)
-        /* Primitive polynomial over GF(2): x^8+x^6+x^5+x^4+1 */
-        (*LFSR) = ((*LFSR) << 1) ^ 0x71;
+// Linear Feedback Shift Register (for round constants)
+int opt_LFSR86540(uint8_t *LFSR) {
+    int result = (*LFSR & 0x01) != 0;
+    if (*LFSR & 0x80)
+        *LFSR = (*LFSR << 1) ^ 0x71;
     else
-        (*LFSR) <<= 1;
+        *LFSR <<= 1;
     return result;
 }
 
-/**
- * Function that computes the Keccak-f[1600] permutation on the given state.
- */
-void opt_KeccakF1600_StatePermute(void *state)
-{
-    unsigned int round, x, y, j, t;
+void opt_KeccakF1600_StatePermute(tKeccakLane state[5][5]) {
     uint8_t LFSRstate = 0x01;
+    unsigned int round, x, y, j, t;
 
-    for(round=0; round<24; round++) {
+    for (round = 0; round < 24; round++) {
         #pragma HLS pipeline
-        {   /* === θ step (see [Keccak Reference, Section 2.3.2]) === */
+
+        // === θ step ===
+        {
             tKeccakLane C[5], D;
-
-            /* Compute the parity of the columns */
-            for(x=0; x<5; x++) {
+            for (x = 0; x < 5; x++) {
                 #pragma HLS pipeline off
-                C[x] = opt_readLane(x, 0) ^ opt_readLane(x, 1) ^ opt_readLane(x, 2) ^ opt_readLane(x, 3) ^ opt_readLane(x, 4);
+                C[x] = state[x][0] ^ state[x][1] ^ state[x][2] ^ state[x][3] ^ state[x][4];
             }
 
-            for(x=0; x<5; x++) {
+            for (x = 0; x < 5; x++) {
                 #pragma HLS pipeline off
-                /* Compute the θ effect for a given column */
-                D = C[(x+4)%5] ^ opt_ROL64(C[(x+1)%5], 1);
-                /* Add the θ effect to the whole column */
-                for (y=0; y<5; y++) {
+                unsigned int xp1 = (x + 1) >= 5 ? 0 : x + 1;
+                unsigned int xm1 = (x + 4) >= 5 ? x - 1 : x + 4; // (x - 1 + 5) % 5
+                D = C[xm1] ^ opt_ROL64(C[xp1], 1);
+                for (y = 0; y < 5; y++) {
                     #pragma HLS pipeline off
-                    opt_XORLane(x, y, D);
+                    state[x][y] ^= D;
                 }
             }
         }
 
-        {   /* === �? and π steps (see [Keccak Reference, Sections 2.3.3 and 2.3.4]) === */
+        // === ρ and π steps ===
+        {
             tKeccakLane current, temp;
-            /* Start at coordinates (1 0) */
             x = 1; y = 0;
-            current = opt_readLane(x, y);
-            /* Iterate over ((0 1)(2 3))^t * (1 0) for 0 ≤ t ≤ 23 */
-            for(t=0; t<24; t++) {
+            current = state[x][y];
+
+            for (t = 0; t < 24; t++) {
                 #pragma HLS pipeline off
-                /* Compute the rotation constant r = (t+1)(t+2)/2 */
-                unsigned int r = ((t+1)*(t+2)/2)%64;
-                /* Compute ((0 1)(2 3)) * (x y) */
-                unsigned int Y = (2*x+3*y)%5; x = y; y = Y;
-                /* Swap current and state(x,y), and rotate */
-                temp = opt_readLane(x, y);
-                opt_writeLane(x, y, opt_ROL64(current, r));
+                unsigned int r = ((t + 1) * (t + 2) / 2) % 64;
+                unsigned int newX = y;
+                unsigned int newY = (2 * x + 3 * y) % 5;
+                temp = state[newX][newY];
+                state[newX][newY] = opt_ROL64(current, r);
                 current = temp;
+                x = newX;
+                y = newY;
             }
         }
 
-        {   /* === χ step (see [Keccak Reference, Section 2.3.1]) === */
+        // === χ step ===
+        {
             tKeccakLane temp[5];
-            for(y=0; y<5; y++) {
+            for (y = 0; y < 5; y++) {
                 #pragma HLS pipeline off
-                /* Take a copy of the plane */
-                for(x=0; x<5; x++) {
+                for (x = 0; x < 5; x++) {
                     #pragma HLS pipeline off
-                    temp[x] = opt_readLane(x, y);
+                    temp[x] = state[x][y];
                 }
-                    
-                /* Compute χ on the plane */
-                for(x=0; x<5; x++) {
+
+                for (x = 0; x < 5; x++) {
                     #pragma HLS pipeline off
-                    opt_writeLane(x, y, temp[x] ^((~temp[(x+1)%5]) & temp[(x+2)%5]));   
+                    unsigned int xp1 = (x + 1 >= 5) ? 0 : x + 1;
+                    unsigned int xp2 = (x + 2 >= 5) ? x - 3 : x + 2;
+                    state[x][y] = temp[x] ^ ((~temp[xp1]) & temp[xp2]);
                 }
             }
         }
 
-        {   /* === ι step (see [Keccak Reference, Section 2.3.5]) === */
-            for(j=0; j<7; j++) {
+        // === ι step ===
+        {
+            for (j = 0; j < 7; j++) {
                 #pragma HLS pipeline off
-                unsigned int bitPosition = (1<<j)-1; /* 2^j-1 */
-                if (opt_LFSR86540(&LFSRstate))
-                    opt_XORLane(0, 0, (tKeccakLane)1<<bitPosition);
+                unsigned int bitPosition = (1 << j) - 1;
+                if (opt_LFSR86540(&LFSRstate)) {
+                    state[0][0] ^= ((tKeccakLane)1 << bitPosition);
+                }
             }
         }
     }
 }
 
-/**
- * This is a stripped back version that removes the generalities from the FIPS implementation
- */
-void sha3_opt_256(const unsigned char input[64], unsigned char output[32])
-{
-    unsigned int rate = 1088; // Thus capacity = 512
+void sha3_opt_256(const unsigned char input[64], unsigned char output[32]) {
+    unsigned int rate = 1088;
     unsigned int inputByteLen = 64;
     unsigned char delimitedSuffix = 0x06;
     unsigned int outputByteLen = 32;
-    uint8_t state[200];
+    unsigned int rateInBytes = rate / 8;
 
-    unsigned int rateInBytes = rate/8;
-    unsigned int i;
-    unsigned int j;
+    tKeccakLane state[5][5];
+    unsigned int i, j;
 
-    /* === Initialize the state === */
-    for (j = 0; j < 200; j++) {
+    // === Initialize the state ===
+    for (j = 0; j < 5; j++) {
         #pragma HLS pipeline off
-        state[j] = 0;
+        for (i = 0; i < 5; i++) {
+            #pragma HLS pipeline off
+            state[i][j] = 0;
+        }
     }
 
-    /* === Absorb all the input blocks === */
-    for(i=0; i < inputByteLen; i++) {
+    // === Absorb the input ===
+    for (i = 0; i < inputByteLen; i++) {
         #pragma HLS pipeline off
-        state[i] ^= input[i]; // XOR the input with the state
+        unsigned int laneIndex = i / 8;
+        unsigned int byteIndex = i % 8;
+        ((uint8_t*)&state[laneIndex % 5][laneIndex / 5])[byteIndex] ^= input[i];
     }
 
-    /* === Do the padding and switch to the squeezing phase === */
-    /* Add padding (which coincides with the delimiter in delimitedSuffix) */
-    state[inputByteLen] ^= delimitedSuffix;
-    /* Add the second bit of padding */
-    state[rateInBytes-1] ^= 0x80;
-    /* Switch to the squeezing phase */
+    // === Padding ===
+    unsigned int padIndex = inputByteLen;
+    unsigned int padLane = padIndex / 8;
+    unsigned int padOffset = padIndex % 8;
+    ((uint8_t*)&state[padLane % 5][padLane / 5])[padOffset] ^= delimitedSuffix;
+
+    ((uint8_t*)&state[(rateInBytes - 1) / 8 % 5][(rateInBytes - 1) / 8 / 5])[((rateInBytes - 1) % 8)] ^= 0x80;
+
+    // === Permutation ===
     opt_KeccakF1600_StatePermute(state);
 
-    /* === Squeeze out all the output blocks === */
+    // === Squeeze output ===
     for (j = 0; j < outputByteLen; j++) {
         #pragma HLS pipeline off
-        output[j] = state[j];
+        unsigned int laneIndex = j / 8;
+        unsigned int byteIndex = j % 8;
+        output[j] = ((uint8_t*)&state[laneIndex % 5][laneIndex / 5])[byteIndex];
     }
 }

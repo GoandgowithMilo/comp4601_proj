@@ -16,7 +16,7 @@ int main() {
     }
 
     // You can duplicate input blocks if you want a larger Merkle tree
-    const int num_leaves = 4;  // Change this for more layers (must be power of 2)
+    const int num_leaves = 1;  // Change this for more layers (must be power of 2)
 
     for (int i = 0; i < num_leaves; ++i) {
         in_stream.write(input_block);
