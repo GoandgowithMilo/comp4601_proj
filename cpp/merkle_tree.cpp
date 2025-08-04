@@ -49,7 +49,7 @@ void sha3_pipeline(hls::stream<hash_t> &input, hls::stream<hash_t> &output) {
 #define TREE_LAYERS 14
 void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, hls::stream<ap_uint<256>> &output) {
     static hash_t layers[TREE_LAYERS]; // For 16,384 leaves we have log_2(16384) = 14 layers of the tree
-    static bool layer_in_use[TREE_LAYERS];
+    static bool layer_in_use[TREE_LAYERS] = {};
 
     hash_t in = input.read();
     int layer = in.hash_layer;
@@ -83,8 +83,7 @@ void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, h
 }
 
 void merkle_tree(hls::stream<ap_uint<512>> &in, hls::stream<ap_uint<256>> &out) {
-    #pragma HLS INTERFACE axis port=in depth=64
-    #pragma HLS INTERFACE axis port=out depth=64
+    #pragma HLS INTERFACE mode=ap_ctrl_none port=return
     hls_thread_local hls::stream<hash_t, 64> feedback; // output_manager => input_manager
     hls_thread_local hls::stream<hash_t, 64> in_sha3; // input_manager => sha_3
     hls_thread_local hls::stream<hash_t, 64> sha3_out; // sha_3 => output_manager
