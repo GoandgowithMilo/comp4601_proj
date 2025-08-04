@@ -5,3 +5,5 @@
 !*.cpp
 !/cpp
 !*.h
+!/benchmarking
+!/benchmarking/*
