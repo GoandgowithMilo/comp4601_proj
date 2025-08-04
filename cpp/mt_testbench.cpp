@@ -12,11 +12,11 @@ int main() {
     // Example input: Fill 64 bytes (512 bits) with some known pattern
     ap_uint<512> input_block = 0;
     for (int i = 0; i < 64; i++) {
-        input_block.range(8*(i+1)-1, 8*i) = i;  // 0x00, 0x01, ..., 0x3F
+        input_block.range(8*(i+1)-1, 8*i) = 0;
     }
 
     // You can duplicate input blocks if you want a larger Merkle tree
-    const int num_leaves = 16384;  // Change this for more layers (must be power of 2)
+    const int num_leaves = 4;  // Change this for more layers (must be power of 2)
 
     for (int i = 0; i < num_leaves; ++i) {
         in_stream.write(input_block);

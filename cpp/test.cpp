@@ -5,7 +5,7 @@
 #include "../Keccak-readable-and-compact.c"
 
 int main() {
-    std::string input = "0123456789012345678901234567890123456789012345678901234567890123";
+    std::string input(64, '\0');
     unsigned char * fips_output = new unsigned char[32];
     unsigned char * output = new unsigned char[32];
 
@@ -22,7 +22,7 @@ int main() {
     printf("SUCCESS!!!!\n");
     printf("HASH OUTPUT: ");
     for (int i = 0; i < 32; i++) {
-        printf("%X", output[i]);
+        printf("%02x", output[i]);
     }
     printf("\n");
     

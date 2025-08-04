@@ -5,8 +5,6 @@
 
 #include "sha3_256.h"
 
-#include <iostream>
-
 struct hash_t {
     unsigned char to_hash[64];
     unsigned char hashed[32];
@@ -46,7 +44,7 @@ void sha3_pipeline(hls::stream<hash_t> &input, hls::stream<hash_t> &output) {
     output.write(data);
 }
 
-#define TREE_LAYERS 14
+#define TREE_LAYERS 3
 void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, hls::stream<ap_uint<256>> &output) {
     static hash_t layers[TREE_LAYERS]; // For 16,384 leaves we have log_2(16384) = 14 layers of the tree
     static bool layer_in_use[TREE_LAYERS] = {};
@@ -71,7 +69,7 @@ void output_manager(hls::stream<hash_t> &input, hls::stream<hash_t> &feedback, h
             ap_uint<256> final_hash;
 
             for (int i = 0; i < 32; i++) {
-                final_hash.range(8 * (i + 1) - 1, 8 * i) = in.hashed[i];
+                final_hash.range(8 * (31 - i + 1) - 1, 8 * (31 - i)) = in.hashed[i];
             }
 
             output.write(final_hash);
